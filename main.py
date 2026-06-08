@@ -215,7 +215,8 @@ async def step_chat(request: Request, user_input: AgentInput):
     return JSONResponse(content=processed_data)
 
 
-from agent.tools.copilot.utils.read_db import get_rows_from_all_tables, get_table_comments_dict, execute_select
+from agent.tools.copilot.utils.read_db import get_rows_from_all_tables, get_table_comments_dict, execute_select, \
+    get_all_comments
 from agent.tools.tools_def import engine, llm, draw_graph
 
 
@@ -242,6 +243,23 @@ async def db_slice(request: Request):
         "msg": "处理成功"
     }
 
+    return JSONResponse(content=processed_data)
+
+
+@app.post("/api/db-comments/")
+async def db_comments(request: Request):
+    all_comments = get_all_comments(engine, tables=None)
+    comments_json = {}
+    for table_name, comments in all_comments.items():
+        comments_json[table_name] = {
+            "table_comment": comments.get('table_comment', ''),
+            "columns": comments.get('columns', {})
+        }
+    processed_data = {
+        "ans": comments_json,
+        "type": "success",
+        "msg": "获取表注释和列注释成功"
+    }
     return JSONResponse(content=processed_data)
 
 
