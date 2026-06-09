@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from agent.cot_chat import get_cot_chat
 from agent.data_comment import get_llm_data_comment
 from agent.step_chat import get_step_chat
+from agent.tools.med_data.fetch_url import fetch_and_extract_text_from_url
 from data_access.insert_data_from_csv import process_csv_to_database
 from utils.get_config import config_data
 
@@ -369,6 +370,47 @@ async def upload_txt(
         raise HTTPException(status_code=500, detail=f"File processing error: {str(e)}")
     return JSONResponse(content=result)
 
+
+@app.post("/fetch-url/")
+async def fetch_url_content(
+        url: str = Form(..., description="需要爬取的网页链接"),
+        table_name: str = Form("uploaded_data"),
+        use_javascript: bool = Form(False, description="是否使用JavaScript渲染（处理动态网页）"),
+        wait_for_selector: Optional[str] = Form(None, description="等待特定元素加载完成（CSS选择器）"),
+        timeout: int = Form(30, description="请求超时时间（秒）"),
+        max_text_length: Optional[int] = Form(10000, description="最大文本长度限制")
+):
+    try:
+        # 调用抽取的爬取函数
+        extracted_text, metadata = await fetch_and_extract_text_from_url(
+            url=url,
+            use_javascript=use_javascript,
+            wait_for_selector=wait_for_selector,
+            timeout=timeout,
+            max_text_length=max_text_length
+        )
+
+        # 调用LLM处理
+        print(extracted_text)
+        # result = get_llm_data_comment(extracted_text, table_name)
+
+        # 构建返回结果
+        response_data = {
+            "status": "success",
+            "table_name": table_name,
+            "extracted_text_length": len(extracted_text),
+            "preview": extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text,
+            "metadata": metadata
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except TimeoutError as e:
+        raise HTTPException(status_code=408, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"URL processing error: {str(e)}")
+
+    return JSONResponse(content=response_data)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=config_data['server_host'], port=config_data['server_port'])

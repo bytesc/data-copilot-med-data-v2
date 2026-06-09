@@ -255,6 +255,90 @@ def export_essentials_to_word(conversation_history):
 
     return file_stream
 
+
+async def fetch_url_api(url: str, table_name: str = "uploaded_data",
+                        use_javascript: bool = False,
+                        wait_for_selector: Optional[str] = None,
+                        timeout: int = 30):
+    """调用后端接口爬取网页内容"""
+    api_url = f"http://127.0.0.1:{config_data['server_port']}/fetch-url/"
+
+    # 构建表单数据
+    data = {
+        "url": url,
+        "table_name": table_name,
+        "use_javascript": str(use_javascript).lower(),
+        "timeout": str(timeout)
+    }
+    if wait_for_selector:
+        data["wait_for_selector"] = wait_for_selector
+
+    with httpx.Client(timeout=float(timeout) + 10) as client:
+        try:
+            response = client.post(api_url, data=data)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"error": f"HTTP {response.status_code}", "details": response.text}
+        except httpx.RequestError as e:
+            return {"error": f"Request failed: {str(e)}"}
+
+def handle_url_fetch():
+    """处理网页URL爬取"""
+    # 获取URL输入
+    url = input("Enter URL to fetch:", type=TEXT,
+                placeholder="https://example.com", required=True)
+
+    if not url:
+        toast("URL is required!", color='warning')
+        return
+
+    table_name = input(
+        "Table name (optional):",
+        type=TEXT,
+        placeholder="uploaded_data",
+        required=False
+    )
+    if not table_name:
+        table_name = "uploaded_data"
+
+    # 使用默认参数：不启用JavaScript，超时30秒
+    use_javascript = True
+    wait_for_selector = None
+    timeout = 90
+
+    with put_loading(shape="grow", color="primary"):
+        # 使用 asyncio.run() 来运行异步函数
+        import asyncio
+        result = asyncio.run(fetch_url_api(url, table_name, use_javascript, wait_for_selector, timeout))
+
+    if result.get('error'):
+        toast(f"Fetch failed: {result.get('error')}", color='error')
+        if result.get('details'):
+            put_markdown(f"**Details:** {result.get('details')}")
+    else:
+        toast("URL fetched successfully!", color='success')
+        put_markdown("### Fetch Results")
+        put_markdown(f"**URL:** {url}")
+        put_markdown(f"**Table name:** `{result.get('table_name', table_name)}`")
+        put_markdown(f"**Extracted text length:** {result.get('extracted_text_length', 'N/A')}")
+
+        # 显示元数据
+        metadata = result.get('metadata', {})
+        if metadata:
+            with put_collapse("Page Metadata"):
+                metadata_table = [["Property", "Value"]]
+                for key, value in metadata.items():
+                    if value:
+                        metadata_table.append([key, str(value)[:200]])
+                put_table(metadata_table)
+
+        # 显示预览
+        preview = result.get('preview', '')
+        if preview:
+            with put_collapse("Content Preview"):
+                put_markdown(preview)
+
 def handle_export_word(conversation_history, export_type="full"):
     """处理导出Word文档 - 直接下载"""
     if not conversation_history:
@@ -378,8 +462,15 @@ def main():
 
     # 添加表格选择、上传和导出按钮
     put_markdown("### Control Panel")
-    put_buttons(['Select Tables', 'Upload CSV File', 'Upload Document File'],
-                onclick=[lambda: handle_table_selection(table_options), handle_csv_upload, handle_doc_upload])
+    put_buttons(
+        ['Select Tables', 'Upload CSV File', 'Upload Document File', 'Fetch URL'],
+        onclick=[
+            lambda: handle_table_selection(table_options),
+            handle_csv_upload,
+            handle_doc_upload,
+            handle_url_fetch
+        ]
+    )
 
     put_markdown("### Export Options")
     put_buttons(['Export Full Conversation', 'Export Essentials (Answers)'],
