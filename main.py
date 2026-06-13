@@ -392,7 +392,7 @@ async def fetch_url_content(
 
         # 调用LLM处理
         print(extracted_text)
-        # result = get_llm_data_comment(extracted_text, table_name)
+        result = get_llm_data_comment(extracted_text, table_name)
 
         # 构建返回结果
         response_data = {
