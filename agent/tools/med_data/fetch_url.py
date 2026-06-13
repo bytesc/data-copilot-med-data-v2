@@ -46,6 +46,10 @@ async def fetch_and_extract_text_from_url(
             print("🚀 启动浏览器...")
             start_time = time.time()
 
+            # 使用传入 timeout 的一半
+            js_timeout = timeout // 2
+            print(f"  ├─ JS渲染超时设置为: {js_timeout}秒 (原始timeout的50%)")
+
             async with async_playwright() as p:
                 browser = await p.chromium.launch(
                     headless=True,
@@ -56,21 +60,23 @@ async def fetch_and_extract_text_from_url(
                 page = await browser.new_page()
                 await page.set_extra_http_headers({"User-Agent": user_agent})
 
-                print(f"  ├─ 加载页面 (超时设置: {timeout}秒)...")
+                print(f"  ├─ 加载页面 (超时设置: {js_timeout}秒)...")
                 goto_start = time.time()
 
                 try:
-                    await page.goto(url, timeout=timeout * 1000, wait_until='domcontentloaded')
+                    await page.goto(url, timeout=js_timeout * 1000, wait_until='domcontentloaded')
                     print(f"  ├─ ✅ 页面加载完成 (耗时: {time.time() - goto_start:.2f}秒)")
                     metadata["status_code"] = 200
                 except Exception as goto_error:
-                    print(f"  ├─ ⚠️ 页面加载超时 ({timeout}秒): {str(goto_error)[:80]}")
+                    print(f"  ├─ ⚠️ 页面加载超时 ({js_timeout}秒): {str(goto_error)[:80]}")
                     metadata["timeout_occurred"] = True
                     metadata["status_code"] = 200
                     print(f"  ├─ 📍 当前页面URL: {page.url}")
 
-                # 等待一下让可能的动态内容开始加载
-                await asyncio.sleep(3)
+                # 等待一下让可能的动态内容开始加载（也使用一半的等待时间）
+                wait_time = min(3, js_timeout // 3)
+                print(f"  ├─ ⏳ 等待动态内容加载 ({wait_time}秒)...")
+                await asyncio.sleep(wait_time)
 
                 # 获取并打印完整的 HTML 内容
                 print(f"  ├─ 📄 获取页面HTML内容...")
@@ -124,7 +130,7 @@ async def fetch_and_extract_text_from_url(
                 print(f"  └─ ✅ 浏览器已关闭 (总耗时: {time.time() - start_time:.2f}秒)")
 
         else:
-            # 非JS模式
+            # 非JS模式 - 使用完整的 timeout
             print("🌐 使用 aiohttp + BeautifulSoup (纯HTTP模式)")
             import aiohttp
             async with aiohttp.ClientSession() as session:
