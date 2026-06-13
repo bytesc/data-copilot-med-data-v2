@@ -204,7 +204,9 @@ async def fetch_and_extract_text_from_url(
         raise Exception("No text content extracted from the webpage")
 
     print(f"\n✅ 成功! 最终提取 {len(extracted_text)} 字符")
-    return extracted_text, metadata
+    # return extracted_text, metadata
+    return html_content, metadata
+
 
 async def main():
     """测试函数"""

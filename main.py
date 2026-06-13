@@ -399,7 +399,7 @@ async def fetch_url_content(
             "status": "success",
             "table_name": table_name,
             "extracted_text_length": len(extracted_text),
-            "preview": extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text,
+            "preview": extracted_text,
             "metadata": metadata
         }
 
