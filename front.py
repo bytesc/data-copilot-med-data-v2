@@ -305,7 +305,7 @@ def handle_url_fetch():
     # 使用默认参数：不启用JavaScript，超时30秒
     use_javascript = True
     wait_for_selector = None
-    timeout = 90
+    timeout = 30
 
     with put_loading(shape="grow", color="primary"):
         # 使用 asyncio.run() 来运行异步函数
