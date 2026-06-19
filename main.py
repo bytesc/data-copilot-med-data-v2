@@ -367,6 +367,7 @@ async def upload_txt(
             "preview": extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text
         }
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=f"File processing error: {str(e)}")
     return JSONResponse(content=result)
 
