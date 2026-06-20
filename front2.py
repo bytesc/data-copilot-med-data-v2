@@ -561,10 +561,10 @@ def main():
                 step_str, _ = ai_agent_api(table_pre + full_question, SELECT_TABLES, "/api/step-chat/")
             if step_str:
                 # step_str = textarea("revise plan:", type=TEXT, rows=8, value=step_str)
-                if "[ ]" not in step_str:
-                    break
                 conversation_history.append(f"Planner: {step_str}")
                 put_markdown(step_str, sanitize=False)
+                if "[ ]" not in step_str:
+                    break
             else:
                 put_text("Failed to get a response from the AI Agent.")
 
