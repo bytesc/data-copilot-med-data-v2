@@ -9,7 +9,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pywebio.session import set_env
 from pywebio.input import input, TEXT, textarea, file_upload, select, checkbox
 from pywebio.output import put_text, put_html, put_markdown, clear, put_loading, toast, popup, put_buttons, \
-    put_collapse, put_table
+    put_collapse, put_table, put_scope, use_scope, put_row
 from pywebio import start_server, config
 from data_access.read_db import get_rows_from_all_tables, get_table_comments_dict, get_all_comments_from_table
 from utils.get_config import config_data
@@ -283,18 +283,19 @@ async def fetch_url_api(url: str, table_name: str = "uploaded_data",
         except httpx.RequestError as e:
             return {"error": f"Request failed: {str(e)}"}
 
+
 def handle_url_fetch():
     """处理网页URL爬取"""
     # 获取URL输入
-    url = input("Enter URL to fetch:", type=TEXT,
+    url = input("🌐 Enter URL to fetch:", type=TEXT,
                 placeholder="https://example.com", required=True)
 
     if not url:
-        toast("URL is required!", color='warning')
+        toast("❌ URL is required!", color='warning')
         return
 
     table_name = input(
-        "Table name (optional):",
+        "📋 Table name (optional):",
         type=TEXT,
         placeholder="uploaded_data",
         required=False
@@ -313,12 +314,12 @@ def handle_url_fetch():
         result = asyncio.run(fetch_url_api(url, table_name, use_javascript, wait_for_selector, timeout))
 
     if result.get('error'):
-        toast(f"Fetch failed: {result.get('error')}", color='error')
+        toast(f"❌ Fetch failed: {result.get('error')}", color='error')
         if result.get('details'):
             put_markdown(f"**Details:** {result.get('details')}")
     else:
-        toast("URL fetched successfully!", color='success')
-        put_markdown("### Fetch Results")
+        toast("✅ URL fetched successfully!", color='success')
+        put_markdown("### 📊 Fetch Results")
         put_markdown(f"**URL:** {url}")
         put_markdown(f"**Table name:** `{result.get('table_name', table_name)}`")
         put_markdown(f"**Extracted text length:** {result.get('extracted_text_length', 'N/A')}")
@@ -326,7 +327,7 @@ def handle_url_fetch():
         # 显示元数据
         metadata = result.get('metadata', {})
         if metadata:
-            with put_collapse("Page Metadata"):
+            with put_collapse("📋 Page Metadata"):
                 metadata_table = [["Property", "Value"]]
                 for key, value in metadata.items():
                     if value:
@@ -336,13 +337,14 @@ def handle_url_fetch():
         # 显示预览
         preview = result.get('preview', '')
         if preview:
-            with put_collapse("Content Preview"):
+            with put_collapse("📄 Content Preview"):
                 put_markdown(preview)
+
 
 def handle_export_word(conversation_history, export_type="full"):
     """处理导出Word文档 - 直接下载"""
     if not conversation_history:
-        toast("No content to export!", color='warning')
+        toast("⚠️ No content to export!", color='warning')
         return
 
     with put_loading(shape="grow", color="primary"):
@@ -371,20 +373,21 @@ def handle_export_word(conversation_history, export_type="full"):
             '''
 
             put_html(download_script)
-            toast(f"Download started: {filename}", color='success')
+            toast(f"✅ Download started: {filename}", color='success')
 
         except Exception as e:
-            toast(f"Export failed: {str(e)}", color='error')
+            toast(f"❌ Export failed: {str(e)}", color='error')
+
 
 def handle_csv_upload():
     file_info = file_upload(
-        "Please select a CSV file to upload",
+        "📊 Please select a CSV file to upload",
         accept=".csv",
         help_text="Select the CSV file you want to upload"
     )
 
     if file_info:
-        table_name = input("Enter table name (optional, default is 'uploaded_data')", type=TEXT,
+        table_name = input("📋 Enter table name (optional, default is 'uploaded_data')", type=TEXT,
                            placeholder="uploaded_data", required=False)
         if not table_name:
             table_name = "uploaded_data"
@@ -393,10 +396,10 @@ def handle_csv_upload():
             print(result)
         err = result.get('type', "error")
         if err == "error":
-            toast(f"Upload failed: {result}", color='error')
+            toast(f"❌ Upload failed: {result}", color='error')
         else:
-            toast("File uploaded successfully!", color='success')
-            put_markdown("### Upload Results")
+            toast("✅ File uploaded successfully!", color='success')
+            put_markdown("### 📊 Upload Results")
             put_markdown(f"Table name: `{result.get('table_name', table_name)}`")
             put_markdown(f"Row count: {result.get('row_count', 'N/A')}")
             put_markdown(f"Message: {result.get('message', 'N/A')}")
@@ -404,13 +407,13 @@ def handle_csv_upload():
 
 def handle_doc_upload():
     file_info = file_upload(
-        "Please select a document file to upload (txt, doc, docx, pdf)",
+        "📄 Please select a document file to upload (txt, doc, docx, pdf)",
         accept=".txt,.doc,.docx,.pdf",
         help_text="Select the document file you want to upload"
     )
 
     if file_info:
-        table_name = input("Enter table name (optional, default is 'uploaded_data')", type=TEXT,
+        table_name = input("📋 Enter table name (optional, default is 'uploaded_data')", type=TEXT,
                            placeholder="uploaded_data", required=False)
         if not table_name:
             table_name = "uploaded_data"
@@ -419,10 +422,10 @@ def handle_doc_upload():
             print(result)
 
         if result.get('error'):
-            toast(f"Upload failed: {result.get('error')}", color='error')
+            toast(f"❌ Upload failed: {result.get('error')}", color='error')
         else:
-            toast("File uploaded successfully!", color='success')
-            put_markdown("### Upload Results")
+            toast("✅ File uploaded successfully!", color='success')
+            put_markdown("### 📄 Upload Results")
             put_markdown(f"Table name: `{result.get('table_name', table_name)}`")
             put_markdown(f"Extracted text length: {result.get('extracted_text_length', 'N/A')}")
             put_markdown(f"Preview: {result.get('preview', 'N/A')}")
@@ -432,12 +435,12 @@ def handle_table_selection(table_options):
     global SELECT_TABLES, SELECT_LABELS
     checkbox_options = [(opt['label'], opt['value']) for opt in table_options]
     selected_tables = checkbox(
-        "Select tables: ",
+        "📋 Select tables: ",
         options=checkbox_options,
         inline=True
     )
     SELECT_TABLES = selected_tables
-    put_markdown(f"You have selected: `{', '.join(selected_tables)}`")
+    put_markdown(f"✅ You have selected: `{', '.join(selected_tables)}`")
     if selected_tables:
         selected_labels = []
         for table_value in selected_tables:
@@ -448,74 +451,206 @@ def handle_table_selection(table_options):
         SELECT_LABELS = selected_labels
 
 
+def create_feature_card(title, description, icon, button_text, onclick_func, scope_name):
+    """创建功能卡片 - 使用table方式布局"""
+    # 创建scope用于放置卡片
+    put_scope(scope_name)
+
+    with use_scope(scope_name):
+        # 卡片内容
+        card_html = f'''
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px;
+            text-align: center;
+            background: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 10px;">{icon}</div>
+            <h3 style="margin: 10px 0; font-size: 16px;">{title}</h3>
+            <p style="color: #666; font-size: 13px; margin: 5px 0;">{description}</p>
+        </div>
+        '''
+        put_html(card_html)
+        # 按钮放在卡片下方
+        put_buttons([button_text], onclick=[onclick_func])
+
+
 def main():
     global SELECT_TABLES, SELECT_LABELS
-    put_markdown("# Data-Copilot")
+    conversation_history = []
 
+    # 设置页面标题
+    put_markdown("# 🤖 Medical Dataset Copilot")
+    put_markdown("---")
 
-
+    # 获取表格信息
     table_comments = get_table_comments_dict()
     table_options = []
     for table_name, comment in table_comments.items():
         display_name = f"{table_name} ({comment})" if comment else table_name
         table_options.append({'label': display_name, 'value': table_name})
 
-    # 添加表格选择、上传和导出按钮
-    put_markdown("### Control Panel")
-    # put_buttons(
-    #     ['Select Tables', 'Upload CSV File', 'Upload Document File', 'Fetch URL'],
-    #     onclick=[
-    #         lambda: handle_table_selection(table_options),
-    #         handle_csv_upload,
-    #         handle_doc_upload,
-    #         handle_url_fetch
-    #     ]
-    # )
-    put_buttons(
-        ['Upload CSV File', 'Upload Document File', 'Fetch URL'],
-        onclick=[
-            handle_csv_upload,
-            handle_doc_upload,
-            handle_url_fetch
+    put_table([
+        [
+            # 第一列：CSV上传
+            put_scope('csv_card'),
+            # 第二列：文档上传
+            put_scope('doc_card'),
+            # 第三列：URL抓取
+            put_scope('url_card')
         ]
-    )
+    ])
 
-    put_markdown("### Export Options")
-    put_buttons(['Export Full Conversation', 'Export Essentials (Answers)'],
+    # 读取图片为base64格式
+    def get_image_base64(image_path):
+        try:
+            with open(image_path, 'rb') as f:
+                img_data = f.read()
+                return base64.b64encode(img_data).decode()
+        except Exception as e:
+            print(f"Error loading image {image_path}: {e}")
+            return None
+
+    # 获取三张图片的base64
+    csv_img_base64 = get_image_base64('./front_img/upload_csv.png')
+    doc_img_base64 = get_image_base64('./front_img/upload_doc.png')
+    url_img_base64 = get_image_base64('./front_img/fetch_url.png')
+
+    # 填充三个卡片的内容
+    # 第一列：CSV上传
+    with use_scope('csv_card'):
+        put_html('''
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px;
+            text-align: center;
+            background: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        ">
+            <div style="width: 100%;">
+                <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                <h3 style="margin: 10px 0; font-size: 16px;">CSV Upload</h3>
+                <p style="color: #666; font-size: 13px; margin: 5px 0;">Upload CSV file for data analysis</p>
+            </div>
+        </div>
+        ''')
+        # 在卡片下方显示图片
+        if csv_img_base64:
+            put_html(
+                f'<div style="height:160px ;text-align: center; margin: 5px 0;"><img src="data:image/png;base64,{csv_img_base64}" style="max-width: 240px; max-height: 240px;"/></div>')
+        put_buttons([' 📤 Upload CSV'], onclick=[handle_csv_upload])
+
+    # 第二列：文档上传
+    with use_scope('doc_card'):
+        put_html('''
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px;
+            text-align: center;
+            background: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        ">
+            <div style="width: 100%;">
+                <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+                <h3 style="margin: 10px 0; font-size: 16px;">Document Upload</h3>
+                <p style="color: #666; font-size: 13px; margin: 5px 0;">Upload TXT, DOC, DOCX, or PDF</p>
+            </div>
+        </div>
+        ''')
+        # 在卡片下方显示图片
+        if doc_img_base64:
+            put_html(
+                f'<div style="height:160px ;text-align: center; margin: 5px 0;"><img src="data:image/png;base64,{doc_img_base64}" style="max-width: 240px; max-height: 240px;"/></div>')
+        put_buttons(['📤 Upload Document'], onclick=[handle_doc_upload])
+
+    # 第三列：URL抓取
+    with use_scope('url_card'):
+        put_html('''
+        <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 5px;
+            text-align: center;
+            background: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        ">
+            <div style="width: 100%;">
+                <div style="font-size: 48px; margin-bottom: 10px;">🌐</div>
+                <h3 style="margin: 10px 0; font-size: 16px;">Fetch URL</h3>
+                <p style="color: #666; font-size: 13px; margin: 5px 0;">Extract content from web pages</p>
+            </div>
+        </div>
+        ''')
+        # 在卡片下方显示图片
+        if url_img_base64:
+            put_html(
+                f'<div style="height:160px ;text-align: center; margin: 5px 0;"><img src="data:image/png;base64,{url_img_base64}" style="max-width: 240px; max-height: 240px;"/></div>')
+        put_buttons([' 🌐 Fetch URL  '], onclick=[handle_url_fetch])
+
+    put_markdown("---")
+
+
+    put_markdown("### 📥 Export Options")
+    put_buttons(['Export Full Conversation', '📝 Export Essentials (Answers)'],
                 onclick=[lambda: handle_export_word(conversation_history, "full"),
                          lambda: handle_export_word(conversation_history, "essentials")])
 
-    with put_collapse(f"Tables"):
+    put_markdown("### 📊 Data View")
+    with put_collapse(f"📋 Tables"):
         # 获取所有注释信息
         all_comments = get_all_comments_from_table()
         first_five_rows = get_rows_from_all_tables()
 
         for table_name, rows in first_five_rows.items():
-            with put_collapse(f"table {table_name}"):
+            with put_collapse(f" table {table_name}"):
                 # 显示表注释
                 if table_name in all_comments:
                     table_comment = all_comments[table_name].get('table_comment', '')
                     if table_comment:
-                        put_text(f"Table comment: {table_comment}")
+                        put_text(f"📝 {table_comment}")
 
                     # 显示列注释（表格形式）
                     columns = all_comments[table_name].get('columns', {})
                     if columns:
-                        put_text("Column comments:")
-                        # 构建表格：第一行是表头，后面是列名和注释
                         comment_table = [["Column Name", "Comment"]]
                         for col_name, comment in columns.items():
                             comment_table.append([col_name, comment])
                         put_table(comment_table)
 
-                put_text(f"table {table_name} first 5 rows:")
+                put_text(f"📊 table {table_name} first 5 rows:")
                 put_table([rows.columns.tolist()] + rows.values.tolist())
 
-    conversation_history = []
-
+    # 对话主循环
     while True:
-        question = textarea("Enter your question here:", type=TEXT, rows=2)
-        put_markdown("## " + question)
+        question = textarea("💬 Enter your question here:", type=TEXT, rows=2)
+        put_markdown("## ❓ " + question)
         conversation_history.append(f"Q: {question}")
         with put_loading():
             step_str, _ = ai_agent_api(question, SELECT_TABLES, "/api/step-chat/")
@@ -524,7 +659,7 @@ def main():
             conversation_history.append(f"Planner: {step_str}")
             put_markdown(step_str, sanitize=False)
         else:
-            put_text("Failed to get a response from the AI Agent.")
+            put_text("❌ Failed to get a response from the AI Agent.")
 
         while True:
             table_pre = ""
@@ -532,7 +667,7 @@ def main():
             value = "please do the next step on the todo list"
             # question = textarea("What is next?:", value=value, type=TEXT, rows=2)
             question = value
-            put_markdown("## " + question)
+            put_markdown("## ⏭️ " + question)
             if conversation_history:
                 context = "\n".join(conversation_history)
                 full_question = f"Context:\n{context}\n\nCurrent Question:\n{question}"
@@ -549,7 +684,7 @@ def main():
                     put_markdown(response, sanitize=False)
                     time.sleep(3)
                 else:
-                    put_text("Failed to get a response from the AI Agent.")
+                    put_text("❌ Failed to get a response from the AI Agent.")
 
                 context = "\n".join(conversation_history)
                 full_question = f"Context:\n{context}\n"
@@ -566,7 +701,7 @@ def main():
                 if "[ ]" not in step_str:
                     break
             else:
-                put_text("Failed to get a response from the AI Agent.")
+                put_text("❌ Failed to get a response from the AI Agent.")
 
 
 if __name__ == '__main__':
