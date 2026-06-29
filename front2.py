@@ -665,8 +665,8 @@ def main():
             table_pre = ""
 
             value = "please do the next step on the todo list"
-            # question = textarea("What is next?:", value=value, type=TEXT, rows=2)
-            question = value
+            question = textarea("⏭ What is next?:", value=value, type=TEXT, rows=2)
+            # question = value
             put_markdown("## ⏭️ " + question)
             if conversation_history:
                 context = "\n".join(conversation_history)
