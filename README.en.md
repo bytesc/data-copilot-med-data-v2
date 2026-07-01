@@ -1,6 +1,6 @@
 # Medical Dataset Copilot
 
-✨ **LLM (Large Language Model) Data Analysis Agent**  
+✨ **Medical Dataset Copilot - LLM Data Analysis Agent**  
 Supports one-click intelligent import of arbitrary datasets and description documents, along with intelligent chart generation. Through multi-agent collaboration and long-context data memory, it enables precise natural language querying and visual analysis.  
 Based on industry applications of medical imaging datasets, it supports intelligent crawling of professional knowledge from industry data websites and exports professional data analysis reports.
 
