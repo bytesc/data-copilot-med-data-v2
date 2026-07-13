@@ -1,4 +1,6 @@
+import asyncio
 import mimetypes
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 import pandas as pd
 import sqlalchemy
@@ -28,8 +30,13 @@ from utils.process_file import process_file_content
 
 app = FastAPI()
 
+# 创建线程池，处理同步任务
+executor = ThreadPoolExecutor(max_workers=10)
+
 STATIC_FOLDER = "tmp_imgs"
 STATIC_PATH = f"/{STATIC_FOLDER}"
+
+
 # http://127.0.0.1:8003/tmp_imgs/mlkjcvep.png
 @app.get(f"/{STATIC_FOLDER}/{{filename}}")
 async def read_static_file(request: Request, filename: str):
@@ -57,6 +64,7 @@ class AgentInputDict(BaseModel):
     question: str
     data: dict
 
+
 class ReviewInput(BaseModel):
     question: str
     ans: str
@@ -67,7 +75,14 @@ class ReviewInput(BaseModel):
 
 @app.post("/api/ask-agent/")
 async def ask_agent(request: Request, user_input: AgentInput):
-    ans, code = cot_agent(user_input.question, user_input.tables, use_all_functions=True)
+    loop = asyncio.get_event_loop()
+    ans, code = await loop.run_in_executor(
+        executor,
+        cot_agent,
+        user_input.question,
+        user_input.tables,
+        True
+    )
     print(ans)
     if ans:
         processed_data = {
@@ -90,7 +105,8 @@ async def ask_agent(request: Request, user_input: AgentInput):
 
 @app.post("/api/exe-code/")
 async def exe_code(request: Request, user_input: AgentInput):
-    ans = exe_cot_code(user_input.question)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, exe_cot_code, user_input.question)
     print(ans)
     if ans:
         processed_data = {
@@ -111,7 +127,8 @@ async def exe_code(request: Request, user_input: AgentInput):
 
 @app.post("/api/get-code/")
 async def get_code(request: Request, user_input: AgentInput):
-    code = get_cot_code(user_input.question)
+    loop = asyncio.get_event_loop()
+    code = await loop.run_in_executor(executor, get_cot_code, user_input.question)
     print(code)
     if code:
         processed_data = {
@@ -132,7 +149,14 @@ async def get_code(request: Request, user_input: AgentInput):
 
 @app.post("/api/review/")
 async def get_code(request: Request, user_input: ReviewInput):
-    ans = get_ans_review(user_input.question, user_input.ans, user_input.code)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(
+        executor,
+        get_ans_review,
+        user_input.question,
+        user_input.ans,
+        user_input.code
+    )
     print(ans)
     if ans:
         processed_data = {
@@ -153,7 +177,8 @@ async def get_code(request: Request, user_input: ReviewInput):
 
 @app.post("/api/agent-summary/")
 async def agent_summary(request: Request, user_input: AgentInput):
-    ans = get_ans_summary(user_input.question)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, get_ans_summary, user_input.question)
     print(ans)
     if ans:
         processed_data = {
@@ -174,7 +199,8 @@ async def agent_summary(request: Request, user_input: AgentInput):
 
 @app.post("/api/cot-chat/")
 async def cot_chat(request: Request, user_input: AgentInput):
-    ans = get_cot_chat(user_input.question)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, get_cot_chat, user_input.question)
     print(ans)
     if ans:
         processed_data = {
@@ -195,13 +221,14 @@ async def cot_chat(request: Request, user_input: AgentInput):
 
 @app.post("/api/step-chat/")
 async def step_chat(request: Request, user_input: AgentInput):
-    ans = get_step_chat(user_input.question)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, get_step_chat, user_input.question)
     print(ans)
     if ans:
         processed_data = {
             "question": user_input.question,
             "ans": ans,
-            "code":"",
+            "code": "",
             "type": "success",
             "msg": "处理成功"
         }
@@ -223,7 +250,14 @@ from agent.tools.tools_def import engine, llm, draw_graph
 
 @app.post("/api/db-slice/")
 async def db_slice(request: Request):
-    first_five_rows = get_rows_from_all_tables(engine, None, num=5)
+    loop = asyncio.get_event_loop()
+    first_five_rows = await loop.run_in_executor(
+        executor,
+        get_rows_from_all_tables,
+        engine,
+        None,
+        5
+    )
     from datetime import date, datetime
     def convert_date(obj):
         if isinstance(obj, (date, datetime)):
@@ -249,7 +283,8 @@ async def db_slice(request: Request):
 
 @app.post("/api/db-comments/")
 async def db_comments(request: Request):
-    all_comments = get_all_comments(engine, tables=None)
+    loop = asyncio.get_event_loop()
+    all_comments = await loop.run_in_executor(executor, get_all_comments, engine, None)
     comments_json = {}
     for table_name, comments in all_comments.items():
         comments_json[table_name] = {
@@ -266,13 +301,15 @@ async def db_comments(request: Request):
 
 @app.post("/api/table-comments/")
 async def table_comments(request: Request):
-    table_comments = get_table_comments_dict(engine, None)
+    loop = asyncio.get_event_loop()
+    table_comments = await loop.run_in_executor(executor, get_table_comments_dict, engine, None)
     processed_data = {
         "ans": table_comments,
         "type": "success",
         "msg": "表注释获取成功"
     }
     return JSONResponse(content=processed_data)
+
 
 @app.post("/api/get-sql/")
 async def get_sql(request: Request):
@@ -288,7 +325,8 @@ async def get_sql(request: Request):
 
 @app.post("/api/exe-sql/")
 async def exe_sql(request: Request, user_input: AgentInput):
-    ans = execute_select(engine, AgentInput.question)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, execute_select, engine, user_input.question)
     processed_data = {
         "ans": ans,
         "type": "success",
@@ -301,7 +339,8 @@ async def exe_sql(request: Request, user_input: AgentInput):
 @app.post("/api/get-graph/")
 async def get_graph_api(request: Request, user_input: AgentInputDict):
     df = pd.DataFrame.from_dict(user_input.data)
-    ans = draw_graph(user_input.question, df)
+    loop = asyncio.get_event_loop()
+    ans = await loop.run_in_executor(executor, draw_graph, user_input.question, df)
     if ans:
         processed_data = {
             "question": user_input.question,
@@ -333,7 +372,8 @@ async def upload_csv(
         content = await file.read()
         if len(content) == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
-        result = process_csv_to_database(content, table_name)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(executor, process_csv_to_database, content, table_name)
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File processing error: {str(e)}")
@@ -358,8 +398,10 @@ async def upload_txt(
         if len(content) == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-        extracted_text = process_file_content(content, file_extension)
-        result = get_llm_data_comment(extracted_text, table_name)
+        loop = asyncio.get_event_loop()
+        extracted_text = await loop.run_in_executor(executor, process_file_content, content, file_extension)
+        result = await loop.run_in_executor(executor, get_llm_data_comment, extracted_text, table_name)
+
         result = {
             "status": "success",
             "table_name": table_name,
@@ -382,7 +424,7 @@ async def fetch_url_content(
         max_text_length: Optional[int] = Form(10000, description="最大文本长度限制")
 ):
     try:
-        # 调用抽取的爬取函数
+        # 调用抽取的爬取函数（这个是异步函数）
         extracted_text, metadata = await fetch_and_extract_text_from_url(
             url=url,
             use_javascript=use_javascript,
@@ -391,9 +433,9 @@ async def fetch_url_content(
             max_text_length=max_text_length
         )
 
-        # 调用LLM处理
-        print(extracted_text)
-        result = get_llm_data_comment(extracted_text, table_name)
+        # 调用LLM处理（这个是同步函数）
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(executor, get_llm_data_comment, extracted_text, table_name)
 
         # 构建返回结果
         response_data = {
@@ -413,5 +455,9 @@ async def fetch_url_content(
 
     return JSONResponse(content=response_data)
 
+
 if __name__ == "__main__":
-    uvicorn.run(app, host=config_data['server_host'], port=config_data['server_port'])
+    try:
+        uvicorn.run(app, host=config_data['server_host'], port=config_data['server_port'])
+    finally:
+        executor.shutdown(wait=True)
